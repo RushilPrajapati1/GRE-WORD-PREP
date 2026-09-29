@@ -1,0 +1,77 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build",
+      "type": "shell",
+      "command": "make build",
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "clear": true
+      },
+      "problemMatcher": {
+        "owner": "swift",
+        "fileLocation": "absolute",
+        "pattern": {
+          "regexp": "^(/.*?):(\\d+):(\\d+): (error|warning|note): (.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        }
+      }
+    },
+    {
+      "label": "Run",
+      "type": "shell",
+      "command": "make run",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always",
+        "clear": true
+      },
+      "problemMatcher": {
+        "owner": "swift",
+        "fileLocation": "absolute",
+        "pattern": {
+          "regexp": "^(/.*?):(\\d+):(\\d+): (error|warning|note): (.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        }
+      }
+    },
+    {
+      "label": "Test",
+      "type": "shell",
+      "command": "make test",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always",
+        "clear": true
+      },
+      "problemMatcher": {
+        "owner": "swift",
+        "fileLocation": "absolute",
+        "pattern": {
+          "regexp": "^(/.*?):(\\d+):(\\d+): (error|warning|note): (.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        }
+      }
+    }
+  ]
+}
