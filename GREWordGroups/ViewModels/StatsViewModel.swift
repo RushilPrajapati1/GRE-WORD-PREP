@@ -4,6 +4,7 @@ import Foundation
 struct StatsViewModel {
     let accuracy: Double
     let totalAnswered: Int
+    let totalCorrect: Int
     let currentStreak: Int
     let bestStreak: Int
     let lastStudied: Date?
@@ -21,6 +22,7 @@ struct StatsViewModel {
 
         accuracy = stats?.accuracy ?? 0
         totalAnswered = stats?.totalAnswered ?? 0
+        totalCorrect = stats?.totalCorrect ?? 0
         currentStreak = stats?.currentStreak ?? 0
         bestStreak = stats?.bestStreak ?? 0
         lastStudied = stats?.lastStudied

@@ -4,168 +4,291 @@ struct DrillView: View {
     @Bindable var viewModel: DrillViewModel
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if let question = viewModel.question {
-                    ScrollView {
-                        VStack(spacing: 20) {
-                            prompt(for: question)
-                            options(for: question)
-                            feedback
+        VStack(spacing: 0) {
+            topBar
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 16)
+
+            if let question = viewModel.question {
+                ScrollView {
+                    VStack(spacing: 16) {
+                        sessionProgress
+                        prompt(for: question)
+                        if viewModel.outcome != nil {
+                            resultBanner
                         }
-                        .padding()
+                        options(for: question)
                     }
-                    .safeAreaInset(edge: .bottom) { actionButton }
-                } else {
-                    ContentUnavailableView("No Question Available", systemImage: "text.book.closed",
-                                           description: Text("Word groups are still loading."))
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 24)
                 }
+                .safeAreaInset(edge: .bottom, spacing: 0) { actionBar }
+            } else {
+                Spacer()
+                ContentUnavailableView("No Question Available", systemImage: "text.book.closed",
+                                       description: Text("Word groups are still loading."))
+                Spacer()
             }
-            .navigationTitle("Drill")
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) { focusMenu }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Label("\(viewModel.streak)", systemImage: "flame.fill")
-                        .labelStyle(.titleAndIcon)
-                        .foregroundStyle(.orange)
-                        .accessibilityLabel("Streak \(viewModel.streak)")
+        }
+        .background(Theme.background)
+        .animation(.snappy(duration: 0.2), value: viewModel.outcome)
+    }
+
+    // MARK: Header
+
+    private var topBar: some View {
+        HStack {
+            Menu {
+                Picker("Groups", selection: Binding(get: { viewModel.focusGroupID },
+                                                    set: { viewModel.focus(on: $0) })) {
+                    Text("All groups").tag(Int?.none)
+                    ForEach(viewModel.groups) { group in
+                        Text(group.name).tag(Int?.some(group.id))
+                    }
                 }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "line.3.horizontal.decrease")
+                    Text(viewModel.focusGroup?.name ?? "All groups")
+                        .lineLimit(1)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 12, weight: .semibold))
+                }
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(Theme.ink)
+                .padding(.horizontal, 14)
+                .frame(height: 40)
+                .background(Theme.surface, in: Capsule())
+                .overlay(Capsule().strokeBorder(Theme.border, lineWidth: 1))
             }
+            .accessibilityLabel("Choose groups to drill")
+            .accessibilityValue(viewModel.focusGroup?.name ?? "All groups")
+
+            Spacer(minLength: 12)
+
+            Label("\(viewModel.streak)", systemImage: "flame")
+                .labelStyle(CompactLabelStyle())
+                .font(.system(size: 16, weight: .bold))
+                .monospacedDigit()
+                .foregroundStyle(Theme.streak)
+                .padding(.horizontal, 14)
+                .frame(height: 40)
+                .background(Theme.streakSoft, in: Capsule())
+                .accessibilityLabel("Streak \(viewModel.streak)")
         }
     }
 
-    private func prompt(for question: DrillQuestion) -> some View {
+    private var sessionProgress: some View {
         VStack(spacing: 8) {
-            Text("Pick the \(DrillEngine.correctCount) words that mean")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            Text(question.group.name)
-                .font(.title2.bold())
-                .multilineTextAlignment(.center)
-            Text(question.group.description)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+            HStack {
+                Text("Question \(viewModel.questionNumber) of \(viewModel.session.length)")
+                Spacer()
+                Text(viewModel.progressHint)
+            }
+            .font(.system(size: 13))
+            .foregroundStyle(Theme.secondaryInk)
+
+            HStack(spacing: 3) {
+                ForEach(0..<viewModel.session.length, id: \.self) { index in
+                    Capsule()
+                        .fill(color(for: viewModel.segment(at: index)))
+                        .frame(height: 4)
+                }
+            }
+            .accessibilityHidden(true)
         }
-        .frame(maxWidth: .infinity)
-        .padding()
-        .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private func color(for segment: DrillViewModel.SegmentState) -> Color {
+        switch segment {
+        case .correct: Theme.success
+        case .wrong: Theme.danger
+        case .current: Theme.accent
+        case .upcoming: Theme.fill
+        }
+    }
+
+    // MARK: Question
+
+    private func prompt(for question: DrillQuestion) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Pick the \(DrillEngine.correctCount) words that mean").eyebrow()
+            Text(question.group.name)
+                .font(Theme.serif(30, .medium, relativeTo: .title))
+            Text(question.group.description)
+                .font(.system(size: 15))
+                .lineSpacing(2)
+                .foregroundStyle(Theme.secondaryInk)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 22)
+        .card(radius: 22)
+    }
+
+    private var resultBanner: some View {
+        let isCorrect = viewModel.outcome?.isCorrect == true
+        return HStack(alignment: .top, spacing: 10) {
+            Image(systemName: isCorrect ? "checkmark" : "xmark")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundStyle(isCorrect ? Theme.success : Theme.danger)
+                .padding(.top, 2)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(viewModel.resultTitle)
+                    .font(.system(size: 16, weight: .bold))
+                Text(viewModel.resultMessage)
+                    .font(.system(size: 14))
+                    .lineSpacing(2)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .foregroundStyle(isCorrect ? Theme.successInk : Theme.dangerInk)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(isCorrect ? Theme.successSoft : Theme.dangerSoft,
+                    in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .transition(.opacity.combined(with: .move(edge: .top)))
     }
 
     private func options(for question: DrillQuestion) -> some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+        LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
             ForEach(question.options, id: \.self) { word in
-                OptionButton(word: word, state: viewModel.state(for: word)) {
+                OptionButton(word: word,
+                             caption: viewModel.caption(for: word),
+                             state: viewModel.state(for: word)) {
                     viewModel.toggle(word)
                 }
             }
         }
     }
 
-    @ViewBuilder
-    private var feedback: some View {
-        if let outcome = viewModel.outcome {
-            Label(outcome.isCorrect ? "Correct!" : "Not quite. The answers are highlighted in green.",
-                  systemImage: outcome.isCorrect ? "checkmark.circle.fill" : "xmark.circle.fill")
-                .font(.headline)
-                .foregroundStyle(outcome.isCorrect ? .green : .red)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
+    // MARK: Action
 
-    private var actionButton: some View {
-        Group {
+    private var actionBar: some View {
+        let enabled = viewModel.outcome != nil || viewModel.canSubmit
+        return Button {
             if viewModel.outcome == nil {
-                Button("Check Answer", action: viewModel.submit)
-                    .disabled(!viewModel.canSubmit)
+                viewModel.submit()
             } else {
-                Button("Next Question", action: viewModel.nextQuestion)
-            }
-        }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
-        .frame(maxWidth: .infinity)
-        .padding()
-        .background(.bar)
-    }
-
-    private var focusMenu: some View {
-        Menu {
-            Picker("Groups", selection: Binding(get: { viewModel.focusGroupID },
-                                                set: { viewModel.focus(on: $0) })) {
-                Text("All Groups").tag(Int?.none)
-                ForEach(viewModel.groups) { group in
-                    Text(group.name).tag(Int?.some(group.id))
-                }
+                viewModel.nextQuestion()
             }
         } label: {
-            Label(viewModel.focusGroup?.name ?? "All Groups", systemImage: "line.3.horizontal.decrease.circle")
-                .labelStyle(.iconOnly)
+            Text(viewModel.actionTitle)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(enabled ? .white : Theme.disabledInk)
+                .frame(maxWidth: .infinity, minHeight: 54)
+                .background(enabled ? Theme.accent : Theme.disabled,
+                            in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .padding(.horizontal, 16)
+        .padding(.top, 12)
+        .padding(.bottom, FloatingTabBar.clearance - 12)
+        .background {
+            Theme.background
+                .overlay(alignment: .top) { Rectangle().fill(Theme.border).frame(height: 1) }
+                .ignoresSafeArea()
         }
     }
 }
 
 private struct OptionButton: View {
     let word: String
+    let caption: String?
     let state: DrillViewModel.OptionState
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            HStack {
-                Text(word)
-                    .font(.body.weight(.medium))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                Spacer(minLength: 4)
-                if let icon {
-                    Image(systemName: icon)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text(word)
+                        .font(Theme.serif(20, .medium))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    Spacer(minLength: 0)
+                    if let icon {
+                        Image(systemName: icon)
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(iconColor)
+                    }
+                }
+                .foregroundStyle(foreground)
+                if let caption {
+                    Text(caption)
+                        .font(.system(size: 12))
+                        .lineSpacing(1)
+                        .foregroundStyle(captionColor)
+                        .multilineTextAlignment(.leading)
                 }
             }
             .padding(.horizontal, 14)
-            .frame(maxWidth: .infinity, minHeight: 52)
-            .foregroundStyle(foreground)
-            .background(background, in: RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(border, lineWidth: 2))
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
+            .background(background, in: shape)
+            .overlay(shape.strokeBorder(border, style: StrokeStyle(lineWidth: 2, dash: state == .missed ? [5, 4] : [])))
+            .contentShape(shape)
         }
         .buttonStyle(.plain)
-        .opacity(state == .dimmed ? 0.5 : 1)
         .accessibilityAddTraits(state == .selected ? .isSelected : [])
+    }
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: 16, style: .continuous)
     }
 
     private var icon: String? {
         switch state {
-        case .correct: "checkmark.circle.fill"
-        case .missed: "circle.dashed"
-        case .wrong: "xmark.circle.fill"
-        case .idle, .selected, .dimmed: nil
+        case .selected, .correct, .missed: "checkmark"
+        case .wrong: "xmark"
+        case .idle, .trap: nil
+        }
+    }
+
+    private var iconColor: Color {
+        switch state {
+        case .selected: Theme.accent
+        case .wrong: Theme.danger
+        default: Theme.success
         }
     }
 
     private var foreground: Color {
         switch state {
-        case .selected: .white
-        case .correct, .missed: .green
-        case .wrong: .red
-        case .idle, .dimmed: .primary
+        case .idle: Theme.ink
+        case .selected: Theme.accentInk
+        case .correct, .missed: Theme.successInk
+        case .wrong: Theme.dangerInk
+        case .trap: Theme.secondaryInk
+        }
+    }
+
+    private var captionColor: Color {
+        switch state {
+        case .correct, .missed: Theme.successInk
+        case .wrong: Theme.dangerInk
+        default: Theme.secondaryInk
         }
     }
 
     private var background: Color {
         switch state {
-        case .selected: .accentColor
-        case .correct, .missed: .green.opacity(0.15)
-        case .wrong: .red.opacity(0.15)
-        case .idle, .dimmed: Color(.secondarySystemBackground)
+        case .selected: Theme.accentSoft
+        case .correct: Theme.successSoft
+        case .wrong: Theme.dangerSoft
+        case .idle, .missed, .trap: Theme.surface
         }
     }
 
     private var border: Color {
         switch state {
-        case .correct: .green
-        case .missed: .green.opacity(0.6)
-        case .wrong: .red
-        case .idle, .selected, .dimmed: .clear
+        case .selected: Theme.accent
+        case .correct, .missed: Theme.success
+        case .wrong: Theme.danger
+        case .idle, .trap: Theme.border
         }
     }
 }

@@ -2,38 +2,37 @@ import SwiftData
 import SwiftUI
 
 struct ContentView: View {
-    enum Tab: Hashable {
-        case groups, drill, stats
-    }
-
     @Environment(\.modelContext) private var modelContext
-    @State private var selection: Tab = .groups
+    @State private var selection: AppTab = .groups
     @State private var drill = DrillViewModel()
     @State private var groups: [WordGroup] = []
     @State private var loadError: String?
 
     var body: some View {
-        TabView(selection: $selection) {
-            GroupsView(groups: groups) { group in
-                drill.focus(on: group.id)
-                selection = .drill
+        ZStack(alignment: .bottom) {
+            Theme.background.ignoresSafeArea()
+
+            tab(.groups) {
+                GroupsView(groups: groups, streak: drill.streak, onDrill: startDrill)
             }
-            .tabItem { Label("Groups", systemImage: "square.grid.2x2") }
-            .tag(Tab.groups)
+            tab(.drill) {
+                DrillView(viewModel: drill)
+            }
+            tab(.stats) {
+                StatsView(groups: groups, onDrill: startDrill, onReset: drill.resetProgress)
+            }
 
-            DrillView(viewModel: drill)
-                .tabItem { Label("Drill", systemImage: "bolt.fill") }
-                .tag(Tab.drill)
-
-            StatsView(groups: groups, onReset: drill.resetProgress)
-                .tabItem { Label("Stats", systemImage: "chart.bar.fill") }
-                .tag(Tab.stats)
+            FloatingTabBar(selection: $selection)
         }
+        .ignoresSafeArea(.keyboard)
+        .tint(Theme.accent)
+        .foregroundStyle(Theme.ink)
+        .preferredColorScheme(.light)
         .overlay {
             if let loadError {
                 ContentUnavailableView("Couldn't Load Words", systemImage: "exclamationmark.triangle",
                                        description: Text(loadError))
-                    .background(.background)
+                    .background(Theme.background)
             }
         }
         .task {
@@ -45,6 +44,21 @@ struct ContentView: View {
                 loadError = error.localizedDescription
             }
         }
+    }
+
+    /// Keeps every tab alive (so navigation and scroll positions survive
+    /// switching tabs) and shows only the selected one.
+    private func tab(_ tab: AppTab, @ViewBuilder content: () -> some View) -> some View {
+        let isSelected = selection == tab
+        return content()
+            .opacity(isSelected ? 1 : 0)
+            .allowsHitTesting(isSelected)
+            .accessibilityHidden(!isSelected)
+    }
+
+    private func startDrill(_ groupID: Int?) {
+        drill.focus(on: groupID)
+        selection = .drill
     }
 }
 
