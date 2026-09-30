@@ -14,3 +14,9 @@ xcuserdata/
 # VS Code language server config (machine-specific paths; regenerate with `make gen`)
 buildServer.json
 .compile
+
+# Personal signing settings
+local.mk
+
+# Progress backups pulled from the iPhone
+backups/

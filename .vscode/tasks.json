@@ -72,6 +72,28 @@
           "message": 5
         }
       }
+    },
+    {
+      "label": "Install on iPhone",
+      "type": "shell",
+      "command": "make device",
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "clear": true
+      },
+      "problemMatcher": {
+        "owner": "swift",
+        "fileLocation": "absolute",
+        "pattern": {
+          "regexp": "^(/.*?):(\\d+):(\\d+): (error|warning|note): (.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        }
+      }
     }
   ]
 }
