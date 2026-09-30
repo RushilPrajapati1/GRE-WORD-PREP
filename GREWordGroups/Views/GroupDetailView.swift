@@ -4,7 +4,7 @@ struct GroupDetailView: View {
     let group: WordGroup
     let levels: [String: Int]
     @Bindable var viewModel: GroupsViewModel
-    let onDrill: (Int?) -> Void
+    let onDrill: (Set<Int>) -> Void
 
     private var uniqueWords: Set<String> { Set(group.words) }
 
@@ -34,7 +34,7 @@ struct GroupDetailView: View {
                 .card()
 
                 Button {
-                    onDrill(group.id)
+                    onDrill([group.id])
                 } label: {
                     Label("Drill this group", systemImage: "bolt")
                         .labelStyle(CompactLabelStyle(spacing: 8))

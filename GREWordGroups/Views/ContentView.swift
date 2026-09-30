@@ -56,8 +56,8 @@ struct ContentView: View {
             .accessibilityHidden(!isSelected)
     }
 
-    private func startDrill(_ groupID: Int?) {
-        drill.focus(on: groupID)
+    private func startDrill(_ groupIDs: Set<Int>) {
+        drill.select(groupIDs: groupIDs)
         selection = .drill
     }
 }

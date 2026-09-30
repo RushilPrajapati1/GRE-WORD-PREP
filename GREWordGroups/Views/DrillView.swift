@@ -2,6 +2,7 @@ import SwiftUI
 
 struct DrillView: View {
     @Bindable var viewModel: DrillViewModel
+    @State private var pickingGroups = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -33,24 +34,24 @@ struct DrillView: View {
         }
         .background(Theme.background)
         .animation(.snappy(duration: 0.2), value: viewModel.outcome)
+        .sheet(isPresented: $pickingGroups) {
+            GroupPickerSheet(groups: viewModel.groups,
+                             masteries: viewModel.groupMasteries(),
+                             selection: viewModel.selectedGroupIDs,
+                             onApply: viewModel.select(groupIDs:))
+        }
     }
 
     // MARK: Header
 
     private var topBar: some View {
         HStack {
-            Menu {
-                Picker("Groups", selection: Binding(get: { viewModel.focusGroupID },
-                                                    set: { viewModel.focus(on: $0) })) {
-                    Text("All groups").tag(Int?.none)
-                    ForEach(viewModel.groups) { group in
-                        Text(group.name).tag(Int?.some(group.id))
-                    }
-                }
+            Button {
+                pickingGroups = true
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "line.3.horizontal.decrease")
-                    Text(viewModel.focusGroup?.name ?? "All groups")
+                    Text(viewModel.selectionTitle)
                         .lineLimit(1)
                     Image(systemName: "chevron.down")
                         .font(.system(size: 12, weight: .semibold))
@@ -62,8 +63,9 @@ struct DrillView: View {
                 .background(Theme.surface, in: Capsule())
                 .overlay(Capsule().strokeBorder(Theme.border, lineWidth: 1))
             }
+            .buttonStyle(.plain)
             .accessibilityLabel("Choose groups to drill")
-            .accessibilityValue(viewModel.focusGroup?.name ?? "All groups")
+            .accessibilityValue(viewModel.selectionTitle)
 
             Spacer(minLength: 12)
 

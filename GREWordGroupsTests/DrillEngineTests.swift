@@ -86,6 +86,36 @@ final class DrillEngineTests: XCTestCase {
         XCTAssertGreaterThan(picks, 200)
     }
 
+    // MARK: Combined drills
+
+    func testCombinedDrillTakesTrapsFromChosenGroups() throws {
+        let chosen = [praise, calm, bold]
+        let chosenWords = Set(calm.words + bold.words)
+        for seed in 0..<300 {
+            var rng = SeededGenerator(seed: UInt64(seed))
+            let question = try XCTUnwrap(DrillEngine.makeQuestion(target: praise, allGroups: groups,
+                                                                  trapGroups: chosen, using: &rng))
+            // Calm + Bold have 6 words, but "commend" is also in Praise, leaving 5 for the 4 traps.
+            XCTAssertTrue(Set(question.trapWords).isSubset(of: chosenWords), "seed \(seed)")
+            XCTAssertFalse(question.trapWords.contains { praise.words.contains($0) }, "seed \(seed)")
+            XCTAssertEqual(question.correctAnswers.count, 2)
+        }
+    }
+
+    func testCombinedDrillTopsUpTrapsWhenChosenGroupsAreTooSmall() throws {
+        let tiny = WordGroup(id: 5, name: "Tiny", description: "", words: ["terse", "laconic"])
+        let all = groups + [tiny]
+        for seed in 0..<300 {
+            var rng = SeededGenerator(seed: UInt64(seed))
+            let question = try XCTUnwrap(DrillEngine.makeQuestion(target: praise, allGroups: all,
+                                                                  trapGroups: [praise, tiny], using: &rng))
+            XCTAssertEqual(question.trapWords.count, DrillEngine.optionCount - DrillEngine.correctCount)
+            XCTAssertTrue(Set(["terse", "laconic"]).isSubset(of: Set(question.trapWords)), "seed \(seed)")
+            XCTAssertFalse(question.trapWords.contains { praise.words.contains($0) }, "seed \(seed)")
+            XCTAssertEqual(Set(question.options).count, question.options.count)
+        }
+    }
+
     // MARK: Scoring
 
     private func sampleQuestion() -> DrillQuestion {

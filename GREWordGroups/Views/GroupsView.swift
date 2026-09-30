@@ -4,7 +4,8 @@ import SwiftUI
 struct GroupsView: View {
     let groups: [WordGroup]
     let streak: Int
-    let onDrill: (Int?) -> Void
+    /// Starts a drill on these group IDs (empty means all groups).
+    let onDrill: (Set<Int>) -> Void
 
     @Query private var progress: [WordProgress]
     @State private var viewModel = GroupsViewModel()
@@ -23,7 +24,7 @@ struct GroupsView: View {
 
                     if let weakest = viewModel.weakestGroup(groups, levels: levels) {
                         UpNextCard(group: weakest, mastery: viewModel.mastery(of: weakest, levels: levels),
-                                   streak: streak) { onDrill(weakest.id) }
+                                   streak: streak) { onDrill([weakest.id]) }
                     }
 
                     SearchField(text: $viewModel.searchText)

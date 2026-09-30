@@ -13,7 +13,8 @@ final class DrillViewModel {
     }
 
     private(set) var groups: [WordGroup] = []
-    private(set) var focusGroupID: Int?
+    /// Groups being drilled together. Empty means every group.
+    private(set) var selectedGroupIDs: Set<Int> = []
     private(set) var question: DrillQuestion?
     private(set) var selection: Set<String> = []
     private(set) var outcome: DrillOutcome?
@@ -22,9 +23,19 @@ final class DrillViewModel {
 
     private var store: ProgressStore?
     private var rng = SystemRandomNumberGenerator()
+    private var lastTargetID: Int?
 
-    var focusGroup: WordGroup? {
-        groups.first { $0.id == focusGroupID }
+    var selectedGroups: [WordGroup] {
+        selectedGroupIDs.isEmpty ? groups : groups.filter { selectedGroupIDs.contains($0.id) }
+    }
+
+    /// Label for the group picker: "All groups", one group's name, or "3 groups".
+    var selectionTitle: String {
+        switch selectedGroupIDs.count {
+        case 0: "All groups"
+        case 1: selectedGroups.first?.name ?? "1 group"
+        case let count: "\(count) groups"
+        }
     }
 
     var canSubmit: Bool {
@@ -39,13 +50,19 @@ final class DrillViewModel {
         nextQuestion()
     }
 
-    /// Restricts drilling to one group, or pass `nil` to drill all groups.
-    /// Changing the focus starts a new session.
-    func focus(on groupID: Int?) {
-        guard focusGroupID != groupID || question == nil else { return }
-        focusGroupID = groupID
+    /// Drills the given groups together, or every group when `groupIDs` is empty.
+    /// Changing the selection starts a new session.
+    func select(groupIDs: Set<Int>) {
+        guard selectedGroupIDs != groupIDs || question == nil else { return }
+        selectedGroupIDs = groupIDs
         session.reset()
         nextQuestion()
+    }
+
+    /// Mastery (0...1) of every group, keyed by group ID.
+    func groupMasteries() -> [Int: Double] {
+        let levels = store?.levelsByWord() ?? [:]
+        return Dictionary(uniqueKeysWithValues: groups.map { ($0.id, DrillEngine.mastery(of: $0, levels: levels)) })
     }
 
     func toggle(_ word: String) {
@@ -71,10 +88,17 @@ final class DrillViewModel {
             session.reset()
         }
         let levels = store?.levelsByWord() ?? [:]
-        let target = focusGroup ?? DrillEngine.pickTargetGroup(from: groups, levels: levels, using: &rng)
+        let pool = selectedGroups
+        // Rotate through the chosen groups instead of repeating the last one.
+        let candidates = pool.count > 1 ? pool.filter { $0.id != lastTargetID } : pool
+        let target = DrillEngine.pickTargetGroup(from: candidates, levels: levels, using: &rng)
+        // In a combined drill the wrong options come from the other chosen groups.
+        let trapGroups = selectedGroupIDs.count > 1 ? pool : nil
         question = target.flatMap {
-            DrillEngine.makeQuestion(target: $0, allGroups: groups, levels: levels, using: &rng)
+            DrillEngine.makeQuestion(target: $0, allGroups: groups, trapGroups: trapGroups,
+                                     levels: levels, using: &rng)
         }
+        lastTargetID = target?.id
         selection = []
         outcome = nil
     }

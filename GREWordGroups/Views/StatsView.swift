@@ -3,7 +3,7 @@ import SwiftUI
 
 struct StatsView: View {
     let groups: [WordGroup]
-    let onDrill: (Int?) -> Void
+    let onDrill: (Set<Int>) -> Void
     let onReset: () -> Void
 
     @Query private var progress: [WordProgress]
@@ -184,7 +184,7 @@ private struct WordLevelsCard: View {
 
 private struct NeedsWorkCard: View {
     let entries: [(group: WordGroup, mastery: Double)]
-    let onDrill: (Int?) -> Void
+    let onDrill: (Set<Int>) -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -192,16 +192,16 @@ private struct NeedsWorkCard: View {
                 Text("Needs work")
                     .font(.system(size: 17, weight: .semibold))
                 Spacer()
-                Button("Drill these") { onDrill(entries.first?.group.id) }
+                Button("Drill these") { onDrill(Set(entries.map(\.group.id))) }
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(Theme.accent)
-                    .accessibilityHint("Drills your weakest group")
+                    .accessibilityHint("Drills these groups together")
             }
             .frame(height: 44)
 
             ForEach(entries, id: \.group.id) { entry in
                 Button {
-                    onDrill(entry.group.id)
+                    onDrill([entry.group.id])
                 } label: {
                     HStack(spacing: 12) {
                         Text(entry.group.name)

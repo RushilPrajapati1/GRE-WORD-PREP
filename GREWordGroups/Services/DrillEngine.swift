@@ -48,9 +48,13 @@ enum DrillEngine {
     /// taken only from other groups. Words shared between groups are never used
     /// as traps, so a trap can't also belong to the target group.
     /// Lower-level (weaker) words are more likely to be chosen as answers.
+    ///
+    /// When `trapGroups` is given (a combined drill), traps come from those groups
+    /// first, topped up from `allGroups` if they don't have enough words.
     static func makeQuestion<R: RandomNumberGenerator>(
         target: WordGroup,
         allGroups: [WordGroup],
+        trapGroups: [WordGroup]? = nil,
         levels: [String: Int] = [:],
         using rng: inout R
     ) -> DrillQuestion? {
@@ -58,15 +62,22 @@ enum DrillEngine {
         let answerPool = unique(target.words)
         guard answerPool.count >= correctCount else { return nil }
 
-        let trapPool = unique(allGroups.filter { $0.id != target.id }.flatMap(\.words))
-            .filter { !targetWords.contains($0) }
+        func trapWords(from groups: [WordGroup]) -> [String] {
+            unique(groups.filter { $0.id != target.id }.flatMap(\.words))
+                .filter { !targetWords.contains($0) }
+        }
+        let trapPool = trapWords(from: allGroups)
         let trapCount = optionCount - correctCount
         guard trapPool.count >= trapCount else { return nil }
 
         let answers = weightedSample(answerPool, count: correctCount, using: &rng) { word in
             Double(maxLevel + 1 - min(levels[word] ?? 0, maxLevel))
         }
-        let traps = Array(trapPool.shuffled(using: &rng).prefix(trapCount))
+        var traps = trapGroups.map { Array(trapWords(from: $0).shuffled(using: &rng).prefix(trapCount)) } ?? []
+        if traps.count < trapCount {
+            let taken = Set(traps)
+            traps += trapPool.filter { !taken.contains($0) }.shuffled(using: &rng).prefix(trapCount - traps.count)
+        }
 
         return DrillQuestion(
             group: target,
